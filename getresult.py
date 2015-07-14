@@ -91,10 +91,14 @@ def process(start, end):
                         passcount[subject] = 0
                     if subject not in failcount:
                         failcount[subject] = 0
+                    if subject not in absentcount:
+                        absentcount[subject] = 0
                     if res == 'P':
                         passcount[subject] += 1
                     if res == 'F':
                         failcount[subject] += 1
+                    if res == 'AB':
+                        absentcount[subject] += 1
                     string += "," + subject + "," + str(internal) + \
                         "," + str(external)
                     if subject in result:
@@ -118,12 +122,13 @@ def getsummary():
 
     doc = SimpleDocTemplate("report.pdf", pagesize=A4,
                             rightMargin=72, leftMargin=72,
-                            topMargin=72, bottomMargin=50)
+                            topMargin=50, bottomMargin=30)
     Story = []
     logo = 'logo.png'
     university = "Adi Shankara Institute of Engineering and Technology"
     branch = "Computer Science and Engineering"
     exam = "Fifth Semester B Tech Degree Examination November 2014"
+    doc.title = "Exam Result Summary"
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='Center1', alignment=1, fontSize=18))
     styles.add(ParagraphStyle(name='Center2', alignment=1, fontSize=13))
@@ -132,11 +137,11 @@ def getsummary():
     im = Image(logo, 1 * inch, 1 * inch)
     Story.append(im)
     Story.append(Paragraph(university, styles["Center1"]))
-    Story.append(Spacer(1, 0.5 * inch))
+    Story.append(Spacer(1, 0.25 * inch))
     Story.append(Paragraph(exam, styles["Center2"]))
     Story.append(Spacer(1, 12))
     Story.append(Paragraph(branch, styles["Center2"]))
-    Story.append(Spacer(1, 0.5 * inch))
+    Story.append(Spacer(1, 0.25 * inch))
     Story.append(Paragraph("Total Number of Students : %d" %
                  numberofstudents, styles["Normal2"]))
     Story.append(Spacer(1, 12))
@@ -148,6 +153,8 @@ def getsummary():
             subject]
         failed = " <bullet>&bull;</bullet>Students Failed : %d" % failcount[
             subject]
+        absent = " <bullet>&bull;</bullet>Students Absent : %d" % absentcount[
+            subject]
         percentage = " <bullet>&bull;</bullet>Pass Percentage : %.2f"\
             % percentage
         average = " <bullet>&bull;</bullet>     Average Marks : %.2f" % avg
@@ -156,6 +163,8 @@ def getsummary():
         Story.append(Paragraph(passed, styles["Normal2"]))
         Story.append(Spacer(1, 12))
         Story.append(Paragraph(failed, styles["Normal2"]))
+        Story.append(Spacer(1, 12))
+        Story.append(Paragraph(absent, styles["Normal2"]))
         Story.append(Spacer(1, 12))
         Story.append(Paragraph(percentage, styles["Normal2"]))
         Story.append(Spacer(1, 12))
@@ -198,9 +207,6 @@ if __name__ == '__main__':
         print "Processing Results"
         print "###############################################"
         process(start, end)
-        print "###############################################"
-        print "Results Summary"
-        print "###############################################"
         getsummary()
     else:
         print "Wrong option"
