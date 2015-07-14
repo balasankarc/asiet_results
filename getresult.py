@@ -20,34 +20,9 @@ import sys
 import pdftableextract as pdf
 from pyPdf import PdfFileReader
 import argparse
-from argparse import RawTextHelpFormatter as rt
 
 
-parser = argparse.ArgumentParser(
-    description='Download and Generate Result Summaries', formatter_class=rt)
-parser.add_argument(
-    "operation", help="Specify the operation\n\
-    1. Download Results \n\
-    2. Generate Summary")
-parser.add_argument(
-    "start_number", help="Specify the starting register number")
-parser.add_argument(
-    "end_number", help="Specify the starting register number")
-args = parser.parse_args()
-
-if len(sys.argv) < 4:
-    print "Usage : python result.py [option] <start reg no> <end reg no>"
-    sys.exit(0)
-
-url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
-url = url + '&attrib=result&page=result'
-start = int(args.start_number)
-end = int(args.end_number)
-operation = int(args.operation)
-if operation == 1:
-    print "###############################################"
-    print "Downloading Results"
-    print "###############################################"
+def download(url, start, end):
     for i in range(start, end + 1):
         print "Roll Number #", i
         payload = dict(exam=28, prn=i, Submit2='Submit')
@@ -56,23 +31,19 @@ if operation == 1:
             with open('result' + str(i) + '.pdf', 'wb') as resultfile:
                 for chunk in r.iter_content():
                     resultfile.write(chunk)
-elif operation == 2:
-    result = {}
-    passcount = {}
-    failcount = {}
-    absentcount = {}
+
+
+def process(start, end):
+    global result, passcount, failcount, absentcount, numberofstudents
     outputfile = open('marklist.csv', 'w')
     numberofstudents = end - start + 1
-    print "###############################################"
-    print "Processing Results"
-    print "###############################################"
     for count in range(start, end + 1):
         try:
             print "Roll Number #", count
             string = ""
             pages = ["1"]
             f = open("result" + str(count) + ".pdf", "rb")
-            doc = PdfFileReader(f)          # Checking if valid pdf file
+            PdfFileReader(f)          # Checking if valid pdf file
             f.close()
             cells = [pdf.process_page("result" + str(count) + ".pdf", p)
                      for p in pages]
@@ -95,7 +66,6 @@ elif operation == 2:
                 elif 'Semester Result' in i[1]:
                     pass
                 else:
-                    slno = i[0]
                     subject = [i][0][1]
                     internal = i[2]
                     external = i[3]
@@ -132,10 +102,10 @@ elif operation == 2:
             continue
 
     outputfile.close()
-    print "###############################################"
-    print "Results Summary"
-    print "###############################################"
 
+
+def getsummary():
+    global result, passcount, failcount, absentcount, numberofstudents
     for key in result:
         print key
         print "\t Total Students :", numberofstudents
@@ -145,6 +115,48 @@ elif operation == 2:
         print float(passcount[key] * 100) / numberofstudents
         avg = float(result[key]) / numberofstudents
         print "\t Average Marks :", avg
-else:
-    print "Wrong option"
-    sys.exit(0)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Download and Generate Result Summaries')
+    parser.add_argument(
+        "operation", help="Specify the operation\n\
+        1. Download Results \n\
+        2. Generate Summary")
+    parser.add_argument(
+        "start_number", help="Specify the starting register number")
+    parser.add_argument(
+        "end_number", help="Specify the starting register number")
+    args = parser.parse_args()
+
+    if len(sys.argv) < 4:
+        print "Usage : python result.py [option] <start reg no> <end reg no>"
+        sys.exit(0)
+
+    url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
+    url = url + '&attrib=result&page=result'
+    start = int(args.start_number)
+    end = int(args.end_number)
+    operation = int(args.operation)
+    if operation == 1:
+        print "###############################################"
+        print "Downloading Results"
+        print "###############################################"
+        download(url, start, end)
+    elif operation == 2:
+        result = {}
+        passcount = {}
+        failcount = {}
+        absentcount = {}
+        numberofstudents = 0
+        print "###############################################"
+        print "Processing Results"
+        print "###############################################"
+        process(start, end)
+        print "###############################################"
+        print "Results Summary"
+        print "###############################################"
+        getsummary()
+    else:
+        print "Wrong option"
+        sys.exit(0)
