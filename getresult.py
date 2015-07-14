@@ -20,6 +20,7 @@ import sys
 import pdftableextract as pdf
 from pyPdf import PdfFileReader
 import argparse
+from argparse import RawTextHelpFormatter as rt
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.lib.pagesizes import A4
@@ -174,7 +175,8 @@ def getsummary():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Download and Generate Result Summaries')
+        description='Download and Generate Result Summaries',
+        formatter_class=rt)
     parser.add_argument(
         "operation", help="Specify the operation\n\
         1. Download Results \n\
