@@ -20,6 +20,12 @@ import sys
 import pdftableextract as pdf
 from pyPdf import PdfFileReader
 import argparse
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
 
 
 def download(url, start, end):
@@ -35,6 +41,7 @@ def download(url, start, end):
 
 def process(start, end):
     global result, passcount, failcount, absentcount, numberofstudents
+    global branch, exam
     outputfile = open('marklist.csv', 'w')
     numberofstudents = end - start + 1
     for count in range(start, end + 1):
@@ -57,6 +64,7 @@ def process(start, end):
                     exampos = i[0].index('Exam Name : ')
                     branch = i[0][branchpos:namepos][9:].strip()
                     name = i[0][namepos:registerpos][6:].strip()
+                    exam = i[0][exampos:][11:].strip()
                     register = i[0][registerpos:exampos][13:].strip()
                     string = branch + "," + name + "," + register
                 elif 'Mahatma' in i[0]:
@@ -106,15 +114,54 @@ def process(start, end):
 
 def getsummary():
     global result, passcount, failcount, absentcount, numberofstudents
-    for key in result:
-        print key
-        print "\t Total Students :", numberofstudents
-        print "\t Students Passed :", passcount[key]
-        print "\t Students Failed :", failcount[key]
-        print "\t Pass Percentage :",
-        print float(passcount[key] * 100) / numberofstudents
-        avg = float(result[key]) / numberofstudents
-        print "\t Average Marks :", avg
+    global branch, exam
+
+    doc = SimpleDocTemplate("report.pdf", pagesize=A4,
+                            rightMargin=72, leftMargin=72,
+                            topMargin=72, bottomMargin=50)
+    Story = []
+    logo = 'logo.png'
+    university = "Adi Shankara Institute of Engineering and Technology"
+    branch = "Computer Science and Engineering"
+    exam = "Fifth Semester B Tech Degree Examination November 2014"
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='Center1', alignment=1, fontSize=18))
+    styles.add(ParagraphStyle(name='Center2', alignment=1, fontSize=13))
+    styles.add(ParagraphStyle(name='Normal2', bulletIndent=20))
+    styles.add(ParagraphStyle(name='Normal3', fontSize=12))
+    im = Image(logo, 1 * inch, 1 * inch)
+    Story.append(im)
+    Story.append(Paragraph(university, styles["Center1"]))
+    Story.append(Spacer(1, 0.5 * inch))
+    Story.append(Paragraph(exam, styles["Center2"]))
+    Story.append(Spacer(1, 12))
+    Story.append(Paragraph(branch, styles["Center2"]))
+    Story.append(Spacer(1, 0.5 * inch))
+    Story.append(Paragraph("Total Number of Students : %d" %
+                 numberofstudents, styles["Normal2"]))
+    Story.append(Spacer(1, 12))
+    for subject in result:
+        percentage = float(passcount[subject] * 100) / numberofstudents
+        avg = float(result[subject]) / numberofstudents
+        subjectname = "<b>%s</b>" % subject
+        passed = "<bullet>&bull;</bullet>Students Passed : %d" % passcount[
+            subject]
+        failed = " <bullet>&bull;</bullet>Students Failed : %d" % failcount[
+            subject]
+        percentage = " <bullet>&bull;</bullet>Pass Percentage : %.2f"\
+            % percentage
+        average = " <bullet>&bull;</bullet>     Average Marks : %.2f" % avg
+        Story.append(Paragraph(subjectname, styles["Normal"]))
+        Story.append(Spacer(1, 12))
+        Story.append(Paragraph(passed, styles["Normal2"]))
+        Story.append(Spacer(1, 12))
+        Story.append(Paragraph(failed, styles["Normal2"]))
+        Story.append(Spacer(1, 12))
+        Story.append(Paragraph(percentage, styles["Normal2"]))
+        Story.append(Spacer(1, 12))
+        Story.append(Paragraph(average, styles["Normal2"]))
+        Story.append(Spacer(1, 12))
+    doc.build(Story)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -128,10 +175,6 @@ if __name__ == '__main__':
     parser.add_argument(
         "end_number", help="Specify the starting register number")
     args = parser.parse_args()
-
-    if len(sys.argv) < 4:
-        print "Usage : python result.py [option] <start reg no> <end reg no>"
-        sys.exit(0)
 
     url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
     url = url + '&attrib=result&page=result'
@@ -149,6 +192,8 @@ if __name__ == '__main__':
         failcount = {}
         absentcount = {}
         numberofstudents = 0
+        branch = ''
+        exam = ''
         print "###############################################"
         print "Processing Results"
         print "###############################################"
