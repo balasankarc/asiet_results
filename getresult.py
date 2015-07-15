@@ -30,6 +30,8 @@ from reportlab.lib.units import inch
 
 
 def download(url, start, end):
+    '''Using the specified url this function downloads the results of register
+    numbers from 'start' to 'end'.'''
     for i in range(start, end + 1):
         print "Roll Number #", i
         payload = dict(exam=28, prn=i, Submit2='Submit')
@@ -41,6 +43,8 @@ def download(url, start, end):
 
 
 def process(start, end):
+    '''This method processes the specified results and populate necessary data
+    structures.'''
     global result, passcount, failcount, absentcount, numberofstudents
     global college, branch, exam
     outputfile = open('marklist.csv', 'w')
@@ -120,6 +124,8 @@ def process(start, end):
 
 
 def getsummary():
+    '''This method generates summary pdf from the results of result processor.
+    '''
     global result, passcount, failcount, absentcount, numberofstudents
     global college, branch, exam
 
@@ -157,7 +163,7 @@ def getsummary():
             subject]
         percentage = " <bullet>&bull;</bullet>Pass Percentage : %.2f"\
             % percentage
-        average = " <bullet>&bull;</bullet>     Average Marks : %.2f" % avg
+        average = " <bullet>&bull;</bullet>Average Marks : %.2f" % avg
         Story.append(Paragraph(subjectname, styles["Normal"]))
         Story.append(Spacer(1, 12))
         Story.append(Paragraph(passed, styles["Normal2"]))
@@ -183,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "start_number", help="Specify the starting register number")
     parser.add_argument(
-        "end_number", help="Specify the starting register number")
+        "end_number", help="Specify the ending register number")
     args = parser.parse_args()
 
     url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
