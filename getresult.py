@@ -42,7 +42,7 @@ def download(url, start, end):
 
 def process(start, end):
     global result, passcount, failcount, absentcount, numberofstudents
-    global branch, exam
+    global college, branch, exam
     outputfile = open('marklist.csv', 'w')
     numberofstudents = end - start + 1
     for count in range(start, end + 1):
@@ -58,14 +58,16 @@ def process(start, end):
             cells = [item for sublist in cells for item in sublist]
             li = pdf.table_to_list(cells, pages)[1]
             for i in li:
-                if 'ADI SHANKARA' in i[0]:
+                if 'Branch' in i[0]:
+                    collegepos = i[0].index('College : ')
                     branchpos = i[0].index('Branch : ')
                     namepos = i[0].index('Name : ')
                     registerpos = i[0].index('Register No : ')
                     exampos = i[0].index('Exam Name : ')
-                    branch = i[0][branchpos:namepos][9:].strip()
-                    name = i[0][namepos:registerpos][6:].strip()
-                    exam = i[0][exampos:][11:].strip()
+                    college = i[0][collegepos:branchpos][9:].strip().title()
+                    branch = i[0][branchpos:namepos][9:].strip().title()
+                    name = i[0][namepos:registerpos][6:].strip().title()
+                    exam = i[0][exampos:][11:].strip().title()
                     register = i[0][registerpos:exampos][13:].strip()
                     string = branch + "," + name + "," + register
                 elif 'Mahatma' in i[0]:
@@ -119,16 +121,13 @@ def process(start, end):
 
 def getsummary():
     global result, passcount, failcount, absentcount, numberofstudents
-    global branch, exam
+    global college, branch, exam
 
     doc = SimpleDocTemplate("report.pdf", pagesize=A4,
                             rightMargin=72, leftMargin=72,
                             topMargin=50, bottomMargin=30)
     Story = []
     logo = 'logo.png'
-    university = "Adi Shankara Institute of Engineering and Technology"
-    branch = "Computer Science and Engineering"
-    exam = "Fifth Semester B Tech Degree Examination November 2014"
     doc.title = "Exam Result Summary"
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='Center1', alignment=1, fontSize=18))
@@ -137,7 +136,7 @@ def getsummary():
     styles.add(ParagraphStyle(name='Normal3', fontSize=12))
     im = Image(logo, 1 * inch, 1 * inch)
     Story.append(im)
-    Story.append(Paragraph(university, styles["Center1"]))
+    Story.append(Paragraph(college, styles["Center1"]))
     Story.append(Spacer(1, 0.25 * inch))
     Story.append(Paragraph(exam, styles["Center2"]))
     Story.append(Spacer(1, 12))
@@ -203,6 +202,7 @@ if __name__ == '__main__':
         failcount = {}
         absentcount = {}
         numberofstudents = 0
+        college = ''
         branch = ''
         exam = ''
         print "###############################################"
