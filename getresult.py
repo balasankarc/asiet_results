@@ -33,14 +33,19 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 def download(url, start, end):
     '''Using the specified url this function downloads the results of register
     numbers from 'start' to 'end'.'''
-    for i in range(start, end + 1):
-        print "Roll Number #", i
-        payload = dict(exam=28, prn=i, Submit2='Submit')
-        r = requests.post(url, payload)
-        if r.status_code == 200:
-            with open('result' + str(i) + '.pdf', 'wb') as resultfile:
-                for chunk in r.iter_content():
-                    resultfile.write(chunk)
+    try:
+        for i in range(start, end + 1):
+            print "Roll Number #", i
+            payload = dict(exam=28, prn=i, Submit2='Submit')
+            r = requests.post(url, payload)
+            if r.status_code == 200:
+                with open('result' + str(i) + '.pdf', 'wb') as resultfile:
+                    for chunk in r.iter_content():
+                        resultfile.write(chunk)
+    except:
+        print "There are some issues with the connectivity.",
+        print "May be due to heavy load. Please try again later"
+        sys.exit(0)
 
 
 def process(start, end):
