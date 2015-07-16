@@ -19,10 +19,12 @@ import argparse
 import json
 import statistics
 import sys
+import textwrap
 from argparse import RawTextHelpFormatter as rt
 
 import pdftableextract as pdf
 import requests
+from lxml import etree
 from pyPdf import PdfFileReader
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -30,13 +32,36 @@ from reportlab.lib.units import inch
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 
-def download(url, start, end):
+def getexamlist(url):
+    '''This method prints a list of exams whose results are available'''
+    try:
+        page = requests.get(url)
+        pagecontenthtml = page.text
+        tree = etree.HTML(pagecontenthtml)
+        code = tree.xpath('//option/@value')
+        text = tree.xpath('//option')
+        print "|--------|" + "-----------" * 6 + "----|"
+        print "|  Code  |\t\t\t\t   Exam\t\t\t\t\t|"
+        print "|--------|" + "-----------" * 6 + "----|"
+        for i in range(1, len(code)):
+            examname = [x.ljust(60 - len(x))
+                        for x in textwrap.wrap(text[i].text, 60)]
+            print "|  ", code[i], "\t |\t", "\t|\n|    \t |\t".join(examname),
+            print "\t\t|"
+            print "|--------|" + "-----------" * 6 + "----|"
+    except:
+            print "There are some issues with the connectivity.",
+            print "May be due to heavy load. Please try again later"
+            sys.exit(0)
+
+
+def download(url, examcode, start, end):
     '''Using the specified url this function downloads the results of register
     numbers from 'start' to 'end'.'''
     try:
         for i in range(start, end + 1):
             print "Roll Number #", i
-            payload = dict(exam=28, prn=i, Submit2='Submit')
+            payload = dict(exam=examcode, prn=i, Submit2='Submit')
             r = requests.post(url, payload)
             if r.status_code == 200:
                 with open('result' + str(i) + '.pdf', 'wb') as resultfile:
@@ -132,13 +157,12 @@ def getsummary():
     styles.add(ParagraphStyle(name='Normal2', bulletIndent=20))
     styles.add(ParagraphStyle(name='Normal3', fontSize=12))
     for college in result:
-        Story.append(Paragraph(college, styles["Center1"]))
-        Story.append(Spacer(1, 0.25 * inch))
-        Story.append(Paragraph(exam, styles["Center2"]))
-        Story.append(Spacer(1, 12))
         for branch in result[college]:
-            numberofstudents = len(
-                result[college].itervalues().next().itervalues().next())
+            Story.append(Paragraph(college, styles["Center1"]))
+            Story.append(Spacer(1, 0.25 * inch))
+            Story.append(Paragraph(exam, styles["Center2"]))
+            Story.append(Spacer(1, 12))
+            numberofstudents = len(result[college][branch].itervalues().next())
             Story.append(Paragraph(branch, styles["Center2"]))
             Story.append(Spacer(1, 0.25 * inch))
             Story.append(Paragraph("Total Number of Students : %d" %
@@ -186,7 +210,7 @@ def getsummary():
                 Story.append(Spacer(1, 12))
                 Story.append(Paragraph(stdev, styles["Normal2"]))
                 Story.append(Spacer(1, 12))
-        Story.append(PageBreak())
+            Story.append(PageBreak())
     doc.build(Story)
 
 if __name__ == '__main__':
@@ -195,25 +219,40 @@ if __name__ == '__main__':
         formatter_class=rt)
     parser.add_argument(
         "operation", help="Specify the operation\n\
-        1. Download Results \n\
-        2. Generate Summary")
+        1. Get list and codes of exams\n\
+        2. Download Results \n\
+        3. Generate Summary")
     parser.add_argument(
-        "start_number", help="Specify the starting register number")
+        "--start", help="Starting register number", default=-1)
     parser.add_argument(
-        "end_number", help="Specify the ending register number")
+        "--end", help="Ending register number", default=-1)
+    parser.add_argument("--exam", help="Exam code", default=-1)
     args = parser.parse_args()
 
     url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
     url = url + '&attrib=result&page=result'
-    start = int(args.start_number)
-    end = int(args.end_number)
+    start = int(args.start)
+    end = int(args.end)
+    exam = int(args.exam)
     operation = int(args.operation)
     if operation == 1:
+        getexamlist(url)
+    elif operation == 2:
+        if start == -1:
+            print "Starting register number missing. Use --start option"
+            sys.exit(0)
+        elif end == -1:
+            print "Ending register number missing . Use --end option"
+            sys.exit(0)
+        elif exam == -1:
+            print "Exam code missing. Use operation #1 to get list of exams.",
+            print "Use --exam option to specify code."
+            sys.exit(0)
         print "###############################################"
         print "Downloading Results"
         print "###############################################"
-        download(url, start, end)
-    elif operation == 2:
+        download(url, exam, start, end)
+    elif operation == 3:
         result = {}
         totalsum = {}
         passcount = {}
