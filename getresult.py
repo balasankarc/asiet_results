@@ -15,20 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import requests
-import sys
-import pdftableextract as pdf
-from pyPdf import PdfFileReader
 import argparse
-from argparse import RawTextHelpFormatter as rt
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import Paragraph
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
 import json
 import statistics
+import sys
+from argparse import RawTextHelpFormatter as rt
+
+import pdftableextract as pdf
+import requests
+from pyPdf import PdfFileReader
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 
 def download(url, start, end):
@@ -49,12 +48,10 @@ def process(start, end):
     structures.'''
     global result, passcount, failcount, absentcount, numberofstudents
     global college, branch, exam
-    outputfile = open('marklist.csv', 'w')
     numberofstudents = end - start + 1
     for count in range(start, end + 1):
         try:
             print "Roll Number #", count
-            string = ""
             pages = ["1"]
             f = open("result" + str(count) + ".pdf", "rb")
             PdfFileReader(f)          # Checking if valid pdf file
@@ -72,10 +69,8 @@ def process(start, end):
                     exampos = i[0].index('Exam Name : ')
                     college = i[0][collegepos:branchpos][9:].strip().title()
                     branch = i[0][branchpos:namepos][9:].strip().title()
-                    name = i[0][namepos:registerpos][6:].strip().title()
                     exam = i[0][exampos:][11:].strip().title()
                     register = i[0][registerpos:exampos][13:].strip()
-                    string = branch + "," + name + "," + register
                     if college not in result:
                         result[college] = {}
                     if branch not in result[college]:
@@ -104,8 +99,6 @@ def process(start, end):
                         result[college][branch][subject] = {}
                     result[college][branch][subject][register] = \
                         [total, res]
-            string = string + "\n"
-            outputfile.write(string)
         except:
             f.close()
             print "Invalid result file for Roll Number #", count
@@ -115,7 +108,6 @@ def process(start, end):
     outfile = open('output.json', 'w')
     outfile.write(jsonout)
     outfile.close()
-    outputfile.close()
 
 
 def getsummary():
@@ -150,11 +142,8 @@ def getsummary():
             for subject in result[college][branch]:
                 marklist = [int(result[college][branch][subject][x][0])
                             for x in result[college][branch][subject]]
-                print marklist
                 average = statistics.mean(marklist)
                 stdev = statistics.pstdev(marklist)
-                print "Subject : ", stdev
-                # numberofstudents = len(result[college][branch][subject])
                 passlist = {x for x in result[college][branch][
                     subject] if 'P' in result[college][branch][subject][x]}
                 faillist = {x for x in result[college][branch][
@@ -165,10 +154,6 @@ def getsummary():
                 failcount = len(faillist)
                 absentcount = len(absentlist)
                 percentage = float(passcount) / numberofstudents
-                # total = 0
-                # for regno in result[college][branch][subject]:
-                #    total += result[college][branch][subject][regno][0]
-                # average = total / numberofstudents
                 subjectname = "<b>%s</b>" % subject
                 passed = "<bullet>&bull;</bullet>Students Passed : %d" \
                     % passcount
