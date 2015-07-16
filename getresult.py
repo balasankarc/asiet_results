@@ -24,9 +24,11 @@ from argparse import RawTextHelpFormatter as rt
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+import json
+import statistics
 
 
 def download(url, start, end):
@@ -74,6 +76,10 @@ def process(start, end):
                     exam = i[0][exampos:][11:].strip().title()
                     register = i[0][registerpos:exampos][13:].strip()
                     string = branch + "," + name + "," + register
+                    if college not in result:
+                        result[college] = {}
+                    if branch not in result[college]:
+                        result[college][branch] = {}
                 elif 'Mahatma' in i[0]:
                     pass
                 elif 'Sl. No' in i[0]:
@@ -94,24 +100,10 @@ def process(start, end):
                         external = int(external)
                     total = internal + external
                     res = i[5]
-                    if subject not in passcount:
-                        passcount[subject] = 0
-                    if subject not in failcount:
-                        failcount[subject] = 0
-                    if subject not in absentcount:
-                        absentcount[subject] = 0
-                    if res == 'P':
-                        passcount[subject] += 1
-                    if res == 'F':
-                        failcount[subject] += 1
-                    if res == 'AB':
-                        absentcount[subject] += 1
-                    string += "," + subject + "," + str(internal) + \
-                        "," + str(external)
-                    if subject in result:
-                        result[subject] += total
-                    else:
-                        result[subject] = total
+                    if subject not in result[college][branch]:
+                        result[college][branch][subject] = {}
+                    result[college][branch][subject][register] = \
+                        [total, res]
             string = string + "\n"
             outputfile.write(string)
         except:
@@ -119,7 +111,10 @@ def process(start, end):
             print "Invalid result file for Roll Number #", count
             numberofstudents -= 1
             continue
-
+    jsonout = json.dumps(result)
+    outfile = open('output.json', 'w')
+    outfile.write(jsonout)
+    outfile.close()
     outputfile.close()
 
 
@@ -127,55 +122,81 @@ def getsummary():
     '''This method generates summary pdf from the results of result processor.
     '''
     global result, passcount, failcount, absentcount, numberofstudents
-    global college, branch, exam
+    global college, branch, exam, totalsum
 
     doc = SimpleDocTemplate("report.pdf", pagesize=A4,
                             rightMargin=72, leftMargin=72,
                             topMargin=50, bottomMargin=30)
     Story = []
-    logo = 'logo.png'
     doc.title = "Exam Result Summary"
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='Center1', alignment=1, fontSize=18))
     styles.add(ParagraphStyle(name='Center2', alignment=1, fontSize=13))
     styles.add(ParagraphStyle(name='Normal2', bulletIndent=20))
     styles.add(ParagraphStyle(name='Normal3', fontSize=12))
-    im = Image(logo, 1 * inch, 1 * inch)
-    Story.append(im)
-    Story.append(Paragraph(college, styles["Center1"]))
-    Story.append(Spacer(1, 0.25 * inch))
-    Story.append(Paragraph(exam, styles["Center2"]))
-    Story.append(Spacer(1, 12))
-    Story.append(Paragraph(branch, styles["Center2"]))
-    Story.append(Spacer(1, 0.25 * inch))
-    Story.append(Paragraph("Total Number of Students : %d" %
-                 numberofstudents, styles["Normal2"]))
-    Story.append(Spacer(1, 12))
-    for subject in result:
-        percentage = float(passcount[subject] * 100) / numberofstudents
-        avg = float(result[subject]) / numberofstudents
-        subjectname = "<b>%s</b>" % subject
-        passed = "<bullet>&bull;</bullet>Students Passed : %d" % passcount[
-            subject]
-        failed = " <bullet>&bull;</bullet>Students Failed : %d" % failcount[
-            subject]
-        absent = " <bullet>&bull;</bullet>Students Absent : %d" % absentcount[
-            subject]
-        percentage = " <bullet>&bull;</bullet>Pass Percentage : %.2f"\
-            % percentage
-        average = " <bullet>&bull;</bullet>Average Marks : %.2f" % avg
-        Story.append(Paragraph(subjectname, styles["Normal"]))
+    for college in result:
+        Story.append(Paragraph(college, styles["Center1"]))
+        Story.append(Spacer(1, 0.25 * inch))
+        Story.append(Paragraph(exam, styles["Center2"]))
         Story.append(Spacer(1, 12))
-        Story.append(Paragraph(passed, styles["Normal2"]))
-        Story.append(Spacer(1, 12))
-        Story.append(Paragraph(failed, styles["Normal2"]))
-        Story.append(Spacer(1, 12))
-        Story.append(Paragraph(absent, styles["Normal2"]))
-        Story.append(Spacer(1, 12))
-        Story.append(Paragraph(percentage, styles["Normal2"]))
-        Story.append(Spacer(1, 12))
-        Story.append(Paragraph(average, styles["Normal2"]))
-        Story.append(Spacer(1, 12))
+        for branch in result[college]:
+            numberofstudents = len(
+                result[college].itervalues().next().itervalues().next())
+            Story.append(Paragraph(branch, styles["Center2"]))
+            Story.append(Spacer(1, 0.25 * inch))
+            Story.append(Paragraph("Total Number of Students : %d" %
+                         numberofstudents, styles["Normal2"]))
+            Story.append(Spacer(1, 12))
+            for subject in result[college][branch]:
+                marklist = [int(result[college][branch][subject][x][0])
+                            for x in result[college][branch][subject]]
+                print marklist
+                average = statistics.mean(marklist)
+                stdev = statistics.pstdev(marklist)
+                print "Subject : ", stdev
+                # numberofstudents = len(result[college][branch][subject])
+                passlist = {x for x in result[college][branch][
+                    subject] if 'P' in result[college][branch][subject][x]}
+                faillist = {x for x in result[college][branch][
+                    subject] if 'F' in result[college][branch][subject][x]}
+                absentlist = {x for x in result[college][branch][
+                    subject] if 'AB' in result[college][branch][subject][x]}
+                passcount = len(passlist)
+                failcount = len(faillist)
+                absentcount = len(absentlist)
+                percentage = float(passcount) / numberofstudents
+                # total = 0
+                # for regno in result[college][branch][subject]:
+                #    total += result[college][branch][subject][regno][0]
+                # average = total / numberofstudents
+                subjectname = "<b>%s</b>" % subject
+                passed = "<bullet>&bull;</bullet>Students Passed : %d" \
+                    % passcount
+                failed = " <bullet>&bull;</bullet>Students Failed : %d" \
+                    % failcount
+                absent = " <bullet>&bull;</bullet>Students Absent : %d" \
+                    % absentcount
+                percentage = " <bullet>&bull;</bullet>Pass Percentage : %.2f"\
+                    % percentage
+                average = " <bullet>&bull;</bullet>Average Marks : %.2f" \
+                    % average
+                stdev = "<bullet>&bull;</bullet>Standard Deviation : %.2f" \
+                    % stdev
+                Story.append(Paragraph(subjectname, styles["Normal"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(passed, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(failed, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(absent, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(percentage, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(average, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+                Story.append(Paragraph(stdev, styles["Normal2"]))
+                Story.append(Spacer(1, 12))
+        Story.append(PageBreak())
     doc.build(Story)
 
 if __name__ == '__main__':
@@ -204,6 +225,7 @@ if __name__ == '__main__':
         download(url, start, end)
     elif operation == 2:
         result = {}
+        totalsum = {}
         passcount = {}
         failcount = {}
         absentcount = {}
