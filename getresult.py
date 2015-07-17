@@ -58,15 +58,21 @@ def getexamlist(url):
 def download(url, examcode, start, end):
     '''Using the specified url this function downloads the results of register
     numbers from 'start' to 'end'.'''
+    global verbosity
     try:
-        for i in range(start, end + 1):
-            print "Roll Number #", i
-            payload = dict(exam=examcode, prn=i, Submit2='Submit')
+        for count in range(start, end + 1):
+            if verbosity == 1:
+                print "Roll Number #", count
+            else:
+                sys.stdout.write("\r%d%%" % ((count - start)*100 / (end - start)))
+                sys.stdout.flush()
+            payload = dict(exam=examcode, prn=count, Submit2='Submit')
             r = requests.post(url, payload)
             if r.status_code == 200:
-                with open('result' + str(i) + '.pdf', 'wb') as resultfile:
+                with open('result' + str(count) + '.pdf', 'wb') as resultfile:
                     for chunk in r.iter_content():
                         resultfile.write(chunk)
+        print ""
     except:
         print "There are some issues with the connectivity.",
         print "May be due to heavy load. Please try again later"
@@ -76,12 +82,15 @@ def download(url, examcode, start, end):
 def process(start, end):
     '''This method processes the specified results and populate necessary data
     structures.'''
-    global result, passcount, failcount, absentcount, numberofstudents
-    global college, branch, exam
+    global result, exam
     numberofstudents = end - start + 1
     for count in range(start, end + 1):
         try:
-            print "Roll Number #", count
+            if verbosity == 1:
+                print "Roll Number #", count
+            else:
+                sys.stdout.write("\r%d%%" % ((count - start) * 100 / (end - start)))
+                sys.stdout.flush()
             pages = ["1"]
             f = open("result" + str(count) + ".pdf", "rb")
             PdfFileReader(f)          # Checking if valid pdf file
@@ -134,10 +143,12 @@ def process(start, end):
             print "Invalid result file for Roll Number #", count
             numberofstudents -= 1
             continue
+    print ""
     jsonout = json.dumps(result)
     outfile = open('output.json', 'w')
     outfile.write(jsonout)
     outfile.close()
+    print ""
 
 
 def getsummary():
@@ -216,43 +227,48 @@ def getsummary():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Download and Generate Result Summaries',
-        formatter_class=rt)
+        formatter_class=rt, add_help=False)
     parser.add_argument(
-        "operation", help="Specify the operation\n\
-        1. Get list and codes of exams\n\
-        2. Download Results \n\
-        3. Generate Summary")
+        "-h", "--help", help="\t\tShow this help and exit", action="store_true")
     parser.add_argument(
-        "--start", help="Starting register number", default=-1)
+        "-l", "--list", help="\t\tList exam codes", action="store_true")
     parser.add_argument(
-        "--end", help="Ending register number", default=-1)
-    parser.add_argument("--exam", help="Exam code", default=-1)
+        "-d", "--download", help="\t\tDownload results", nargs=3,
+        metavar=('START', 'END', 'EXAM'))
+    parser.add_argument(
+        "-p", "--process", help="\t\tDownload results", nargs=2,
+        metavar=('START', 'END'))
+    parser.add_argument(
+        "-v", "--verbose", help="Enable Verbosity", action="store_true")
     args = parser.parse_args()
 
     url = 'http://projects.mgu.ac.in/bTech/btechresult/index.php?module=public'
     url = url + '&attrib=result&page=result'
-    start = int(args.start)
-    end = int(args.end)
-    exam = int(args.exam)
-    operation = int(args.operation)
-    if operation == 1:
+    verbosity = 0
+    if args.help:
+        print ""
+        print "usage: getresult.py [-h] [-l LIST] [--download START END EXAM] [--process START END]"
+        print "Download and Generate Result Summaries"
+        print "\noptional arguments:"
+        print "   -h/--help\t\t\t\tshow this help message and exit"
+        print "   -v/--verbose\t\t\t\tEnable verbosity"
+        print "   -l/--list\t\t\t\tList exam codes"
+        print "   -d/--download START END EXAM\t\tDownload results"
+        print "   -p/--process START END\t\tProcess results"
+        sys.exit(0)
+    if args.verbose:
+        verbosity = 1
+    if args.list:
         getexamlist(url)
-    elif operation == 2:
-        if start == -1:
-            print "Starting register number missing. Use --start option"
-            sys.exit(0)
-        elif end == -1:
-            print "Ending register number missing . Use --end option"
-            sys.exit(0)
-        elif exam == -1:
-            print "Exam code missing. Use operation #1 to get list of exams.",
-            print "Use --exam option to specify code."
-            sys.exit(0)
-        print "###############################################"
+    if args.download:
+        start = int(args.download[0])
+        end = int(args.download[1])
+        exam = int(args.download[2])
         print "Downloading Results"
-        print "###############################################"
         download(url, exam, start, end)
-    elif operation == 3:
+    if args.process:
+        start = int(args.download[0])
+        end = int(args.download[1])
         result = {}
         totalsum = {}
         passcount = {}
@@ -262,11 +278,6 @@ if __name__ == '__main__':
         college = ''
         branch = ''
         exam = ''
-        print "###############################################"
         print "Processing Results"
-        print "###############################################"
         process(start, end)
         getsummary()
-    else:
-        print "Wrong option"
-        sys.exit(0)
