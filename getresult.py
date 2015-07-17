@@ -40,6 +40,7 @@ def getexamlist(url):
         tree = etree.HTML(pagecontenthtml)
         code = tree.xpath('//option/@value')
         text = tree.xpath('//option')
+        # Extremely dirty ASCII art. TODO
         print "|--------|" + "-----------" * 6 + "----|"
         print "|  Code  |\t\t\t\t   Exam\t\t\t\t\t|"
         print "|--------|" + "-----------" * 6 + "----|"
@@ -64,7 +65,8 @@ def download(url, examcode, start, end):
             if verbosity == 1:
                 print "Roll Number #", count
             else:
-                sys.stdout.write("\r%d%%" % ((count - start)*100 / (end - start)))
+                sys.stdout.write(
+                    "\r%.2f%%" % (float((count - start) * 100) / float(end - start)))
                 sys.stdout.flush()
             payload = dict(exam=examcode, prn=count, Submit2='Submit')
             r = requests.post(url, payload)
@@ -83,13 +85,14 @@ def process(start, end):
     '''This method processes the specified results and populate necessary data
     structures.'''
     global result, exam
-    numberofstudents = end - start + 1
+    badresult = []
     for count in range(start, end + 1):
         try:
             if verbosity == 1:
                 print "Roll Number #", count
             else:
-                sys.stdout.write("\r%d%%" % ((count - start) * 100 / (end - start)))
+                sys.stdout.write(
+                    "\r%.2f%%" % (float(count - start) * 100 / (end - start)))
                 sys.stdout.flush()
             pages = ["1"]
             f = open("result" + str(count) + ".pdf", "rb")
@@ -140,10 +143,12 @@ def process(start, end):
                         [total, res]
         except:
             f.close()
-            print "Invalid result file for Roll Number #", count
-            numberofstudents -= 1
+            badresult.append(count)
             continue
-    print ""
+    if(len(badresult) > 0):
+        print "\nUnavailable Results Skipped"
+        for invalid in badresult:
+            print "Roll Number #", invalid
     jsonout = json.dumps(result)
     outfile = open('output.json', 'w')
     outfile.write(jsonout)
@@ -154,14 +159,15 @@ def process(start, end):
 def getsummary():
     '''This method generates summary pdf from the results of result processor.
     '''
-    global result, passcount, failcount, absentcount, numberofstudents
-    global college, branch, exam, totalsum
+    global result
+    global exam
 
     doc = SimpleDocTemplate("report.pdf", pagesize=A4,
                             rightMargin=72, leftMargin=72,
                             topMargin=50, bottomMargin=30)
     Story = []
     doc.title = "Exam Result Summary"
+    # Defining different text styles to be used in PDF
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='Center1', alignment=1, fontSize=18))
     styles.add(ParagraphStyle(name='Center2', alignment=1, fontSize=13))
@@ -169,6 +175,7 @@ def getsummary():
     styles.add(ParagraphStyle(name='Normal3', fontSize=12))
     for college in result:
         for branch in result[college]:
+            # PDF Generation begins
             Story.append(Paragraph(college, styles["Center1"]))
             Story.append(Spacer(1, 0.25 * inch))
             Story.append(Paragraph(exam, styles["Center2"]))
@@ -182,8 +189,8 @@ def getsummary():
             for subject in result[college][branch]:
                 marklist = [int(result[college][branch][subject][x][0])
                             for x in result[college][branch][subject]]
-                average = statistics.mean(marklist)
-                stdev = statistics.pstdev(marklist)
+                average = statistics.mean(marklist)  # Calculating mean
+                stdev = statistics.pstdev(marklist)  # Calculating standard deviation
                 passlist = {x for x in result[college][branch][
                     subject] if 'P' in result[college][branch][subject][x]}
                 faillist = {x for x in result[college][branch][
@@ -221,10 +228,11 @@ def getsummary():
                 Story.append(Spacer(1, 12))
                 Story.append(Paragraph(stdev, styles["Normal2"]))
                 Story.append(Spacer(1, 12))
-            Story.append(PageBreak())
+            Story.append(PageBreak())  # Each department on new page
     doc.build(Story)
 
 if __name__ == '__main__':
+    # Defining commandline options
     parser = argparse.ArgumentParser(
         description='Download and Generate Result Summaries',
         formatter_class=rt, add_help=False)
@@ -270,14 +278,6 @@ if __name__ == '__main__':
         start = int(args.download[0])
         end = int(args.download[1])
         result = {}
-        totalsum = {}
-        passcount = {}
-        failcount = {}
-        absentcount = {}
-        numberofstudents = 0
-        college = ''
-        branch = ''
-        exam = ''
         print "Processing Results"
         process(start, end)
         getsummary()
