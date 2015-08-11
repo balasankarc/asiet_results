@@ -231,6 +231,7 @@ def generatepdf():
 
 
 def getsummary():
+    ''' This method generates overall average and standard deviation'''
     infile = open('output.json', 'r')
     filecontent = infile.read()
     infile.close()
