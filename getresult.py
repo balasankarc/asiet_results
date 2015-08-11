@@ -252,10 +252,14 @@ def getsummary():
         for subject in result[department]:
             if subject not in final[department]:
                 final[department][subject] = []
-            subjectaverage = statistics.mean(result[department][subject])
-            subjectdev = statistics.stdev(result[department][subject])
-            final[department][subject].append(subjectaverage)
-            final[department][subject].append(subjectdev)
+            if len(result[department][subject]) > 1:
+                subjectaverage = statistics.mean(result[department][subject])
+                subjectdev = statistics.stdev(result[department][subject])
+                final[department][subject].append(subjectaverage)
+                final[department][subject].append(subjectdev)
+            else:
+                final[department][subject].append(0)
+                final[department][subject].append(0)
     for department in final:
         print department
         for subject in final[department]:
