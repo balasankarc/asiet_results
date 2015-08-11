@@ -135,14 +135,12 @@ def process(start, end):
                         external = 0
                     else:
                         external = int(external)
-                    total = internal + external
                     res = i[5]
                     if subject not in result[college][branch]:
                         result[college][branch][subject] = {}
                     result[college][branch][subject][register] = \
-                        [total, res]
+                        [external, res]
         except:
-            f.close()
             badresult.append(count)
             continue
     if(len(badresult) > 0):
@@ -156,7 +154,7 @@ def process(start, end):
     print ""
 
 
-def getsummary():
+def generatepdf():
     '''This method generates summary pdf from the results of result processor.
     '''
     global result
@@ -231,6 +229,40 @@ def getsummary():
             Story.append(PageBreak())  # Each department on new page
     doc.build(Story)
 
+
+def getsummary():
+    infile = open('output.json', 'r')
+    filecontent = infile.read()
+    infile.close()
+    jsondata = json.loads(filecontent)
+    result = {}
+    final = {}
+    for college in jsondata:
+        for department in jsondata[college]:
+            if department not in result:
+                result[department] = {}
+            for subject in jsondata[college][department]:
+                if subject not in result[department]:
+                    result[department][subject] = []
+                for student in jsondata[college][department][subject]:
+                    result[department][subject].append(jsondata[college][department][subject][student][0])
+    for department in result:
+        if department not in final:
+            final[department] = {}
+        for subject in result[department]:
+            if subject not in final[department]:
+                final[department][subject] = []
+            subjectaverage = statistics.mean(result[department][subject])
+            subjectdev = statistics.stdev(result[department][subject])
+            final[department][subject].append(subjectaverage)
+            final[department][subject].append(subjectdev)
+    for department in final:
+        print department
+        for subject in final[department]:
+            print "\t", subject
+            print "\t\t Average : %.2f" % final[department][subject][0]
+            print "\t\t Standard Deviation : %.2f " % final[department][subject][1]
+
 if __name__ == '__main__':
     # Defining commandline options
     parser = argparse.ArgumentParser(
@@ -275,9 +307,10 @@ if __name__ == '__main__':
         print "Downloading Results"
         download(url, exam, start, end)
     if args.process:
-        start = int(args.download[0])
-        end = int(args.download[1])
+        start = int(args.process[0])
+        end = int(args.process[1])
         result = {}
         print "Processing Results"
         process(start, end)
+        generatepdf()
         getsummary()
